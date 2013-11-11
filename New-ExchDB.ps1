@@ -85,9 +85,15 @@ write-host -ForegroundColor Green "Mount database"
 Mount-Database -Identity $NewDBName
 }
 END {
+write-host -ForegroundColor Green "Send infomail"
+if ($ExchSrv -match "mb2") {
+$City = "Сочи"
+} else {
+$City = "Москва"
+}
+$MailBody = "Новая почтовая база<br><p>Сервер: <b>$ExchSrv</b><br>База: <b>$NewDBName</b><br>Расположение: <b>$City</b></p>"
+Send-MailMessage -From ($env:USERNAME + "@sochi2014.com") -Subject "Создана новая почтовая база $NewDBName" -To 'sysadmins@SOCHI2014.COM' -Body $MailBody -BodyAsHtml -Encoding Unicode -SmtpServer exch-cas02
 write-host -ForegroundColor Green "Done"
 Start-Sleep 2
 }
 }
-
-New-ExchDB -Ex 28 -Db 1G -N DB156-1G
