@@ -6,9 +6,9 @@ function Set-PicToADUserScheduledTask {
   .DESCRIPTION
   The function is designed to run as a scheduled task.
   .EXAMPLE
-  .\Set-PicToADUserScheduledTask.ps1 -e exch-cas01-n1 -p \\exch-cas01-n1\c$\USER_PICS -l _LOG.csv
+  .\Set-PicToADUserScheduledTask.ps1 -ExchSrv exch-cas01-n1 -PicsDir \\exch-cas01-n1\c$\USER_PICS -LogFileName _LOG.csv
   .EXAMPLE
-  .\Set-PicToADUserScheduledTask.ps1 -p \\exch-cas01-n1\c$\USER_PICS\ -l _LOG.csv
+  .\Set-PicToADUserScheduledTask.ps1 -PicsDir \\exch-cas01-n1\c$\USER_PICS\ -LogFileName _LOG.csv
   .PARAMETER ExchSrv
   Set target Exchange mailbox server
   .PARAMETER $PicsDir
@@ -58,5 +58,3 @@ Move-Item -Path $path -Destination ($ArchivePicDir + "\" + $NewPic.Name) -Force
 }
 Remove-PSSession $Session
 }
-
-Set-PicToADUserScheduledTask -ExchSrv exch-cas01-n1 -PicsDir "d:\user_pics" -LogFileName "ADUserPics.csv"
