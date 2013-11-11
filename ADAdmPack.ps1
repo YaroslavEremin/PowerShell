@@ -28,6 +28,10 @@ Export-Csv -Delimiter ";" -Path d:\Userlist.csv -encoding "unicode"
 Get-ADUser -SearchBase "OU=Staff,DC=contoso,DC=com" -Filter {-not (company -like "*")} -Properties description,sAMAccountName |
 Sort-Object -Property description | Format-Table -AutoSize | Out-File -FilePath d:\Userlist.txt
 
+#Поиск пользователей у которых стоит галочка "Сменить пароль при следующем входе"
+Get-ADUser -Filter { pwdLastSet -eq 0 } -SearchBase "OU=Users,DC=contoso,DC=com" |
+Select-Object -Property sAMAccountName | Sort-Object sAMAccountName | Out-File d:\users.txt 
+
 #Поиск пользователей по списку
 $UserDesktop = New-Object –com Shell.Application
 $UserDesktopPath = ($UserDesktop.namespace(0x10)).Self.Path
