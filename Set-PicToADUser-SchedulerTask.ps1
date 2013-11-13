@@ -28,7 +28,7 @@ $PicsDir = [regex]::replace($PicsDir,'\$','')
 }
 $LogFilePath = $PicsDir + "\" + $LogFileName
 $ArchivePicDir = $PicsDir + "\" + "Archive"
-$NewPics = Get-ChildItem -File -Path ($PicsDir + "\") -Filter "*.jpg"
+$NewPics = Get-ChildItem -Path $PicsDir -Filter "*.jpg"
 $NewPics = Sort-Object -InputObject $NewPics -Property LastWriteTime
 #Checking for pictures folder
 If ( -not(Test-Path $PicsDir) ) {
@@ -53,10 +53,8 @@ $path = $PicsDir + '\' + $NewPic.Name
 #Import-RecipientDataProperty -Identity $UserName -Picture -FileData ([Byte[]]$(Get-Content -path $path -Encoding Byte -ReadCount 0))
 $LogObject = Select-Object -InputObject $NewPic -Property Name,LastWriteTime
 #Record job to a log file
-Export-Csv -InputObject $LogObject -Path $LogFilePath -Append
+Format-Table -InputObject $LogObject -AutoSize | Out-File -FilePath $LogFilePath -Append
 Move-Item -Path $path -Destination ($ArchivePicDir + "\" + $NewPic.Name) -Force
 }
 Remove-PSSession $Session
 }
-
-Set-PicToADUserScheduledTask -ExchSrv exch-cas01-n1 -PicsDir "d:\user_pics" -LogFileName "ADUserPics.csv"
