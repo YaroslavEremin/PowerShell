@@ -1,7 +1,7 @@
-#Создание контакта через Exchange
-$m_a = <mail_address> | New-MailContact -Name $m_a –Alias $m_a -ExternalEmailAddress $m_a
+п»ї#РЎРѕР·РґР°РЅРёРµ РєРѕРЅС‚Р°РєС‚Р° С‡РµСЂРµР· Exchange
+$m_a = <mail_address> | New-MailContact -Name $m_a вЂ“Alias $m_a -ExternalEmailAddress $m_a
 
-#Вывод статистики по количеству mailboxes в базах на серверах Exchange 
+#Р’С‹РІРѕРґ СЃС‚Р°С‚РёСЃС‚РёРєРё РїРѕ РєРѕР»РёС‡РµСЃС‚РІСѓ mailboxes РІ Р±Р°Р·Р°С… РЅР° СЃРµСЂРІРµСЂР°С… Exchange 
 (Get-MailboxDatabase) | where {$_.Server -like <Template>} |
 Select-Object Server,Name,@{Name='Type';Expression={[regex]::replace($_.name,'^.*-','')}},`
 @{Name="Counter";Expression={(@(Get-Mailbox -Database $_.name)).Count}} |
@@ -11,67 +11,67 @@ Get-MailboxServer | %{ Get-Mailboxstatistics -Server $_.name } |
 ?{ $_.DisconnectDate -ne $null } |
 Select DisplayName,@{n="StoreMailboxIdentity";e={$_.MailboxGuid}},Database
 
-#Вывод расширенной статистики по  mailboxes в базе
+#Р’С‹РІРѕРґ СЂР°СЃС€РёСЂРµРЅРЅРѕР№ СЃС‚Р°С‚РёСЃС‚РёРєРё РїРѕ  mailboxes РІ Р±Р°Р·Рµ
 Get-Mailbox -Database <DB_Name> | sort-object |
 Select-Object name,alias,servername,ProhibitSendQuota,IssueWarningQuota,MaxReceiveSize,`
 MaxSendSize,DisplayName,Database,PrimarySmtpAddress,ProhibitSendReceiveQuota,`
 @{n="Size(KB)";e = {$MBXstat = Get-MailboxStatistics $_.name; $MBXstat.totalItemsize}},`
 @{n="Items"; e = {$MBXstat = Get-MailboxStatistics $_.name ; $MBXstat.itemcount; $MBXstat.storageLimitStatus}}
 
-#Информация о квотах, примененных к почтовым базам в Организации (запускать в Exchange 2010)
+#РРЅС„РѕСЂРјР°С†РёСЏ Рѕ РєРІРѕС‚Р°С…, РїСЂРёРјРµРЅРµРЅРЅС‹С… Рє РїРѕС‡С‚РѕРІС‹Рј Р±Р°Р·Р°Рј РІ РћСЂРіР°РЅРёР·Р°С†РёРё (Р·Р°РїСѓСЃРєР°С‚СЊ РІ Exchange 2010)
 Get-MailboxDatabase -IncludePreExchange2010 |
 Select-Object Name, ProhibitSendReceiveQuota, ProhibitSendQuota, IssueWarningQuota |
 Sort -Property Name | Format-Table -AutoSize
 
-#Выгрузка в PST-файл (запускать в Exchange 2010)
+#Р’С‹РіСЂСѓР·РєР° РІ PST-С„Р°Р№Р» (Р·Р°РїСѓСЃРєР°С‚СЊ РІ Exchange 2010)
 New-MailboxExportRequest -Mailbox <MAilbox_Alias> -FilePath C:\Temp\<MAilbox_Alias>.pst
 
-#Настройка квот и некоторых других параметров почтовых баз (перед использованием команды необходимо внести изменение в параметр Identity, подставив реальные значения.
-Set-MailboxDatabase -Identity DB<NN>-200M -IssueWarningQuota 180MB -ProhibitSendQuota 190MB -ProhibitSendReceiveQuota 200MB` -QuotaNotificationSchedule 'Вс.2:00-Вс.2:15, Пн.2:00-Пн.2:15, Вт.2:00-Вт.2:15, Ср.2:00-Ср.2:15, Чт.2:00-Чт.2:15, Пт.2:00-Пт.2:15, Сб.2:00-Сб.2:15' -OfflineAddressBook '\<Address_Book>' -MailboxRetention '7.00:00:00' -DeletedItemRetention '5.00:00:00'
-Set-MailboxDatabase -Identity DB<NN>-1G -IssueWarningQuota 922MB -ProhibitSendQuota 973MB -ProhibitSendReceiveQuota 1024MB -QuotaNotificationSchedule 'Вс.2:00-Вс.2:15, Пн.2:00-Пн.2:15, Вт.2:00-Вт.2:15, Ср.2:00-Ср.2:15, Чт.2:00-Чт.2:15, Пт.2:00-Пт.2:15, Сб.2:00-Сб.2:15' -OfflineAddressBook '\<Address_Book>' -MailboxRetention '7.00:00:00' -DeletedItemRetention '5.00:00:00'
-Set-MailboxDatabase -Identity DB<NN>-2G -IssueWarningQuota 1844MB -ProhibitSendQuota 1946MB -ProhibitSendReceiveQuota 2048MB -QuotaNotificationSchedule 'Вс.2:00-Вс.2:15, Пн.2:00-Пн.2:15, Вт.2:00-Вт.2:15, Ср.2:00-Ср.2:15, Чт.2:00-Чт.2:15, Пт.2:00-Пт.2:15, Сб.2:00-Сб.2:15' -OfflineAddressBook '\<Address_Book>' -MailboxRetention '7.00:00:00' -DeletedItemRetention '5.00:00:00'
-Set-MailboxDatabase -Identity DB<NN>-5G -IssueWarningQuota 4608MB -ProhibitSendQuota 4864MB -ProhibitSendReceiveQuota 5120MB -QuotaNotificationSchedule 'Вс.2:00-Вс.2:15, Пн.2:00-Пн.2:15, Вт.2:00-Вт.2:15, Ср.2:00-Ср.2:15, Чт.2:00-Чт.2:15, Пт.2:00-Пт.2:15, Сб.2:00-Сб.2:15' -OfflineAddressBook '\<Address_Book>' -MailboxRetention '7.00:00:00' -DeletedItemRetention '5.00:00:00'
-Set-MailboxDatabase -Identity DB<NN>-20G -IssueWarningQuota 18440MB -ProhibitSendQuota 19460MB -ProhibitSendReceiveQuota 20480MB -QuotaNotificationSchedule 'Вс.2:00-Вс.2:15, Пн.2:00-Пн.2:15, Вт.2:00-Вт.2:15, Ср.2:00-Ср.2:15, Чт.2:00-Чт.2:15, Пт.2:00-Пт.2:15, Сб.2:00-Сб.2:15' -OfflineAddressBook '\<Address_Book>' -MailboxRetention '7.00:00:00' -DeletedItemRetention '5.00:00:00'
+#РќР°СЃС‚СЂРѕР№РєР° РєРІРѕС‚ Рё РЅРµРєРѕС‚РѕСЂС‹С… РґСЂСѓРіРёС… РїР°СЂР°РјРµС‚СЂРѕРІ РїРѕС‡С‚РѕРІС‹С… Р±Р°Р· (РїРµСЂРµРґ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµРј РєРѕРјР°РЅРґС‹ РЅРµРѕР±С…РѕРґРёРјРѕ РІРЅРµСЃС‚Рё РёР·РјРµРЅРµРЅРёРµ РІ РїР°СЂР°РјРµС‚СЂ Identity, РїРѕРґСЃС‚Р°РІРёРІ СЂРµР°Р»СЊРЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ.
+Set-MailboxDatabase -Identity DB<NN>-200M -IssueWarningQuota 180MB -ProhibitSendQuota 190MB -ProhibitSendReceiveQuota 200MB` -QuotaNotificationSchedule 'Р’СЃ.2:00-Р’СЃ.2:15, РџРЅ.2:00-РџРЅ.2:15, Р’С‚.2:00-Р’С‚.2:15, РЎСЂ.2:00-РЎСЂ.2:15, Р§С‚.2:00-Р§С‚.2:15, РџС‚.2:00-РџС‚.2:15, РЎР±.2:00-РЎР±.2:15' -OfflineAddressBook '\<Address_Book>' -MailboxRetention '7.00:00:00' -DeletedItemRetention '5.00:00:00'
+Set-MailboxDatabase -Identity DB<NN>-1G -IssueWarningQuota 922MB -ProhibitSendQuota 973MB -ProhibitSendReceiveQuota 1024MB -QuotaNotificationSchedule 'Р’СЃ.2:00-Р’СЃ.2:15, РџРЅ.2:00-РџРЅ.2:15, Р’С‚.2:00-Р’С‚.2:15, РЎСЂ.2:00-РЎСЂ.2:15, Р§С‚.2:00-Р§С‚.2:15, РџС‚.2:00-РџС‚.2:15, РЎР±.2:00-РЎР±.2:15' -OfflineAddressBook '\<Address_Book>' -MailboxRetention '7.00:00:00' -DeletedItemRetention '5.00:00:00'
+Set-MailboxDatabase -Identity DB<NN>-2G -IssueWarningQuota 1844MB -ProhibitSendQuota 1946MB -ProhibitSendReceiveQuota 2048MB -QuotaNotificationSchedule 'Р’СЃ.2:00-Р’СЃ.2:15, РџРЅ.2:00-РџРЅ.2:15, Р’С‚.2:00-Р’С‚.2:15, РЎСЂ.2:00-РЎСЂ.2:15, Р§С‚.2:00-Р§С‚.2:15, РџС‚.2:00-РџС‚.2:15, РЎР±.2:00-РЎР±.2:15' -OfflineAddressBook '\<Address_Book>' -MailboxRetention '7.00:00:00' -DeletedItemRetention '5.00:00:00'
+Set-MailboxDatabase -Identity DB<NN>-5G -IssueWarningQuota 4608MB -ProhibitSendQuota 4864MB -ProhibitSendReceiveQuota 5120MB -QuotaNotificationSchedule 'Р’СЃ.2:00-Р’СЃ.2:15, РџРЅ.2:00-РџРЅ.2:15, Р’С‚.2:00-Р’С‚.2:15, РЎСЂ.2:00-РЎСЂ.2:15, Р§С‚.2:00-Р§С‚.2:15, РџС‚.2:00-РџС‚.2:15, РЎР±.2:00-РЎР±.2:15' -OfflineAddressBook '\<Address_Book>' -MailboxRetention '7.00:00:00' -DeletedItemRetention '5.00:00:00'
+Set-MailboxDatabase -Identity DB<NN>-20G -IssueWarningQuota 18440MB -ProhibitSendQuota 19460MB -ProhibitSendReceiveQuota 20480MB -QuotaNotificationSchedule 'Р’СЃ.2:00-Р’СЃ.2:15, РџРЅ.2:00-РџРЅ.2:15, Р’С‚.2:00-Р’С‚.2:15, РЎСЂ.2:00-РЎСЂ.2:15, Р§С‚.2:00-Р§С‚.2:15, РџС‚.2:00-РџС‚.2:15, РЎР±.2:00-РЎР±.2:15' -OfflineAddressBook '\<Address_Book>' -MailboxRetention '7.00:00:00' -DeletedItemRetention '5.00:00:00'
 
-# Очистить список завершенных выгрузок в PST-файл
+# РћС‡РёСЃС‚РёС‚СЊ СЃРїРёСЃРѕРє Р·Р°РІРµСЂС€РµРЅРЅС‹С… РІС‹РіСЂСѓР·РѕРє РІ PST-С„Р°Р№Р»
 Get-MailboxExportRequest -Status Completed | Remove-MailboxExportRequest
 
-#Просмотр размера почтовых баз
+#РџСЂРѕСЃРјРѕС‚СЂ СЂР°Р·РјРµСЂР° РїРѕС‡С‚РѕРІС‹С… Р±Р°Р·
 Get-MailboxDatabase -Status | select ServerName,Name,DatabaseSize
 
-#Получение списка почтовых ящиков с персонально установленными квотами
+#РџРѕР»СѓС‡РµРЅРёРµ СЃРїРёСЃРєР° РїРѕС‡С‚РѕРІС‹С… СЏС‰РёРєРѕРІ СЃ РїРµСЂСЃРѕРЅР°Р»СЊРЅРѕ СѓСЃС‚Р°РЅРѕРІР»РµРЅРЅС‹РјРё РєРІРѕС‚Р°РјРё
 Get-Mailbox -Filter { UseDatabaseQuotaDefaults -eq $False } -ResultSize Unlimited |
 Select-Object Name,ServerName,Database | Format-Table -AutoSize
 
-#Получение списка писем с темами отправленных/полученных сотрудником за определенный временной интервал.
-#Полученных
+#РџРѕР»СѓС‡РµРЅРёРµ СЃРїРёСЃРєР° РїРёСЃРµРј СЃ С‚РµРјР°РјРё РѕС‚РїСЂР°РІР»РµРЅРЅС‹С…/РїРѕР»СѓС‡РµРЅРЅС‹С… СЃРѕС‚СЂСѓРґРЅРёРєРѕРј Р·Р° РѕРїСЂРµРґРµР»РµРЅРЅС‹Р№ РІСЂРµРјРµРЅРЅРѕР№ РёРЅС‚РµСЂРІР°Р».
+#РџРѕР»СѓС‡РµРЅРЅС‹С…
 Get-ExchangeServer | where {$_.isHubTransportServer -eq $true -or $_.isMailboxServer -eq $true}  |
 Get-MessageTrackingLog -Recipients:<mddressail_a> -EventID "RECEIVE" -Start "02/18/2013 0:00:00" -End "03/06/2013 23:59:00" |
 Select-Object Timestamp,Sender,@{l="Recipients";e={$_.Recipients -join " "}},MessageSubject |
 Sort-Object -Property Timestamp  | Export-Csv C:\TEMP\report.txt -encoding unicode
-#Отправленных
+#РћС‚РїСЂР°РІР»РµРЅРЅС‹С…
 Get-ExchangeServer | where {$_.isHubTransportServer -eq $true -or $_.isMailboxServer -eq $true}  |
 Get-MessageTrackingLog -Sender <mddressail_a> -EventID "SEND" -Start "02/18/2013 0:00:00" -End "03/06/2013 23:59:00" |
 Select-Object Timestamp,Sender,@{l="Recipients";e={$_.Recipients -join " "}},MessageSubject |
 Sort-Object -Property Timestamp  | Export-Csv C:\TEMP\report.txt -encoding unicode
 
-#Создать ящики
+#РЎРѕР·РґР°С‚СЊ СЏС‰РёРєРё
 Import-Csv d:\m.csv |
-%{ Write-Host -ForegroundColor Green 'Создаем ящик' ; $_.mailbox
+%{ Write-Host -ForegroundColor Green 'РЎРѕР·РґР°РµРј СЏС‰РёРє' ; $_.mailbox
 New-Mailbox -Alias $_.mailbox -Password (ConvertTo-SecureString <your_password> -AsPlainText -Force)`
 -Database <DB_Name> -DisplayName $_.mailbox -FirstName $_.mailbox -LastName $_.mailbox`
 -Name $_.mailbox -SamAccountName $_.mailbox -UserPrincipalName (@($_.mailbox + '@contoso.com'))
-Write-Host -ForegroundColor Green 'Прописываем менеджера и комментарий' ; $_.username
-Set-ADUser -Identity $_.mailbox -Manager $_.username -Replace @{'info'=<комментарий>}
+Write-Host -ForegroundColor Green 'РџСЂРѕРїРёСЃС‹РІР°РµРј РјРµРЅРµРґР¶РµСЂР° Рё РєРѕРјРјРµРЅС‚Р°СЂРёР№' ; $_.username
+Set-ADUser -Identity $_.mailbox -Manager $_.username -Replace @{'info'=<РєРѕРјРјРµРЅС‚Р°СЂРёР№>}
 }
 
-#Дать права на почтовый ящик
+#Р”Р°С‚СЊ РїСЂР°РІР° РЅР° РїРѕС‡С‚РѕРІС‹Р№ СЏС‰РёРє
 Import-Csv d:\m.csv | %{
 Add-ADPermission $_.mailbox -User $_.username -Extendedrights "Send As"
 Add-MailboxPermission -Identity $_.mailbox -User $_.username -AccessRights 'FullAccess'
 }
 
-#Статистика по размерам ящиков в базах Exchange
+#РЎС‚Р°С‚РёСЃС‚РёРєР° РїРѕ СЂР°Р·РјРµСЂР°Рј СЏС‰РёРєРѕРІ РІ Р±Р°Р·Р°С… Exchange
 $Bases = @(<DB_Name>,<DB_Name>)
 $( ForEach ( $Base in $Bases ) { Get-Mailbox -Database $Base } ) |
 Select-Object Alias, DatabaseName, @{ Name = "Size"; Expression = { $Size = Get-MailboxStatistics $_.name ; $Size.totalItemsize}} |

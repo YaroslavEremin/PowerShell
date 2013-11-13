@@ -1,39 +1,39 @@
-
-#Экспорт списка пользователей из группы в TXT-файл
+п»ї
+#Р­РєСЃРїРѕСЂС‚ СЃРїРёСЃРєР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· РіСЂСѓРїРїС‹ РІ TXT-С„Р°Р№Р»
 Get-ADGroupMember <GroupName> | Select-Object -Property sAMAccountName |
 Sort -Property sAMAccountName | Out-File -FilePath d:\ADGroupMember.txt
 
-#Экспорт списка пользователей из группы в CSV-файл
+#Р­РєСЃРїРѕСЂС‚ СЃРїРёСЃРєР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· РіСЂСѓРїРїС‹ РІ CSV-С„Р°Р№Р»
 Get-ADGroupMember <GroupName>  | Select-Object -Property sAMAccountName |
 Sort -Property sAMAccountName | Export-Csv -Delimiter ";" -Path d:\ADGroupMember.csv
 
-#Вывод в файл списка email адресов пользователей членов группы
+#Р’С‹РІРѕРґ РІ С„Р°Р№Р» СЃРїРёСЃРєР° email Р°РґСЂРµСЃРѕРІ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ С‡Р»РµРЅРѕРІ РіСЂСѓРїРїС‹
 $Users = Get-ADGroupMember <GroupName>
 $(foreach ($CurrentUser in $Users) {
 Get-ADUser -Identity $CurrentUser -Properties mail |  Select-Object -Property mail | Sort -Property mail 
 }) | Out-File -FilePath d:\ADGroupMember.txt
 
-#Добавить членов группы в другую группу:
+#Р”РѕР±Р°РІРёС‚СЊ С‡Р»РµРЅРѕРІ РіСЂСѓРїРїС‹ РІ РґСЂСѓРіСѓСЋ РіСЂСѓРїРїСѓ:
 Add-ADGroupMember <GroupName1> -members (Get-ADGroupMember <GroupName2>) -PassThru
 
-#Добавить членов подразделения в группу:
+#Р”РѕР±Р°РІРёС‚СЊ С‡Р»РµРЅРѕРІ РїРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ РІ РіСЂСѓРїРїСѓ:
 Get-ADUser -SearchBase "OU=Staff,DC=contoso,DC=com" -Filter * | % {Add-ADGroupMember -Identity <GroupName> -Members $_}
 
-#Вывод в файл списка пользователе с отбором по параметру:
+#Р’С‹РІРѕРґ РІ С„Р°Р№Р» СЃРїРёСЃРєР° РїРѕР»СЊР·РѕРІР°С‚РµР»Рµ СЃ РѕС‚Р±РѕСЂРѕРј РїРѕ РїР°СЂР°РјРµС‚СЂСѓ:
 Get-ADUser -Filter {description -eq <your_param>} -Properties description,displayname,userPrincipalName |
 Select-Object -Property description,displayname,userPrincipalName |
 Export-Csv -Delimiter ";" -Path d:\Userlist.csv -encoding "unicode"
 
-#Поиск пользователей у которых не заполнен атрибут Организация
+#РџРѕРёСЃРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ Сѓ РєРѕС‚РѕСЂС‹С… РЅРµ Р·Р°РїРѕР»РЅРµРЅ Р°С‚СЂРёР±СѓС‚ РћСЂРіР°РЅРёР·Р°С†РёСЏ
 Get-ADUser -SearchBase "OU=Staff,DC=contoso,DC=com" -Filter {-not (company -like "*")} -Properties description,sAMAccountName |
 Sort-Object -Property description | Format-Table -AutoSize | Out-File -FilePath d:\Userlist.txt
 
-#Поиск пользователей у которых стоит галочка "Сменить пароль при следующем входе"
+#РџРѕРёСЃРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ Сѓ РєРѕС‚РѕСЂС‹С… СЃС‚РѕРёС‚ РіР°Р»РѕС‡РєР° "РЎРјРµРЅРёС‚СЊ РїР°СЂРѕР»СЊ РїСЂРё СЃР»РµРґСѓСЋС‰РµРј РІС…РѕРґРµ"
 Get-ADUser -Filter { pwdLastSet -eq 0 } -SearchBase "OU=Users,DC=contoso,DC=com" |
 Select-Object -Property sAMAccountName | Sort-Object sAMAccountName | Out-File d:\users.txt 
 
-#Поиск пользователей по списку
-$UserDesktop = New-Object –com Shell.Application
+#РџРѕРёСЃРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РїРѕ СЃРїРёСЃРєСѓ
+$UserDesktop = New-Object вЂ“com Shell.Application
 $UserDesktopPath = ($UserDesktop.namespace(0x10)).Self.Path
 $Users = Import-Csv -Delimiter ',' ($UserDesktopPath + '\Userlist.csv')
 $(Foreach($CurrentUser in $Users){
@@ -42,8 +42,8 @@ Get-ADUser -Filter { description -like $description } -Properties description,sA
 Select-Object -Property description,sAMAccountName
 }) | Export-Csv -Delimiter ";" -Path ($UserDesktopPath + '\Users.csv') -Encoding unicode
 
-#Добавление группы пользователей из списка в группу АД
-$UserDesktop = New-Object –com Shell.Application
+#Р”РѕР±Р°РІР»РµРЅРёРµ РіСЂСѓРїРїС‹ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· СЃРїРёСЃРєР° РІ РіСЂСѓРїРїСѓ РђР”
+$UserDesktop = New-Object вЂ“com Shell.Application
 $UserDesktopPath = ($UserDesktop.namespace(0x10)).Self.Path
 $Users = Import-Csv -Delimiter ";" ($UserDesktopPath + '\Users.csv')
 $(Foreach($CurrentUser in $Users){
@@ -51,8 +51,8 @@ $sAMAccountName = $CurrentUser.sAMAccountName
 Add-ADGroupMember <GroupName> -members $sAMAccountName -PassThru
 }) 
 
-#Поиск по списку, для проверки отключенна ли учетная запись (512 - Active, 514 - Disable)
-$UserDesktop = New-Object –com Shell.Application
+#РџРѕРёСЃРє РїРѕ СЃРїРёСЃРєСѓ, РґР»СЏ РїСЂРѕРІРµСЂРєРё РѕС‚РєР»СЋС‡РµРЅРЅР° Р»Рё СѓС‡РµС‚РЅР°СЏ Р·Р°РїРёСЃСЊ (512 - Active, 514 - Disable)
+$UserDesktop = New-Object вЂ“com Shell.Application
 $UserDesktopPath = ($UserDesktop.namespace(0x10)).Self.Path
 $Users = Import-Csv -Delimiter ";" ($UserDesktopPath + '\Users.csv')
 $(Foreach($CurrentUser in $Users){
@@ -62,8 +62,8 @@ Select-Object -Property description,sAMAccountName,useraccountcontrol
 }) | Out-File -FilePath d:\Users.txt -Encoding unicode 
 
 
-#Поиск пользователей входящих в группу локальных администраторов на серверах Windows
-$UserDesktop = New-Object –com Shell.Application
+#РџРѕРёСЃРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РІС…РѕРґСЏС‰РёС… РІ РіСЂСѓРїРїСѓ Р»РѕРєР°Р»СЊРЅС‹С… Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂРѕРІ РЅР° СЃРµСЂРІРµСЂР°С… Windows
+$UserDesktop = New-Object вЂ“com Shell.Application
 $UserDesktopPath = ($UserDesktop.namespace(0x10)).Self.Path
 Get-ADComputer -Filter { operatingSystem -like "*server*" } -SearchBase "OU=Servers,DC=contoso,DC=com" -Properties name,operatingSystem,distinguishedName |
 Select-Object -Property name,operatingSystem,distinguishedName | Export-Csv -Delimiter ";" -Path ($UserDesktopPath + '\Servers.csv') -Encoding unicode 
