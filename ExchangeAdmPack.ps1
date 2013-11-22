@@ -45,15 +45,27 @@ Select-Object Name,ServerName,Database | Format-Table -AutoSize
 
 #Получение списка писем с темами отправленных/полученных сотрудником за определенный временной интервал.
 #Полученных
-Get-ExchangeServer | where {$_.isHubTransportServer -eq $true -or $_.isMailboxServer -eq $true}  |
-Get-MessageTrackingLog -Recipients:<mddressail_a> -EventID "RECEIVE" -Start "02/18/2013 0:00:00" -End "03/06/2013 23:59:00" |
+Get-ExchangeServer | where {$_.isHubTransportServer -eq $true -or $_.isMailboxServer -eq $true}  | %{
+Get-MessageTrackingLog -Recipients:<mddressail_a> -EventID "RECEIVE" -Start "02/18/2013 0:00:00" -End "03/06/2013 23:59:00"} |
 Select-Object Timestamp,Sender,@{l="Recipients";e={$_.Recipients -join " "}},MessageSubject |
 Sort-Object -Property Timestamp  | Export-Csv C:\TEMP\report.txt -encoding unicode
 #Отправленных
-Get-ExchangeServer | where {$_.isHubTransportServer -eq $true -or $_.isMailboxServer -eq $true}  |
-Get-MessageTrackingLog -Sender <mddressail_a> -EventID "SEND" -Start "02/18/2013 0:00:00" -End "03/06/2013 23:59:00" |
+Get-ExchangeServer | where {$_.isHubTransportServer -eq $true -or $_.isMailboxServer -eq $true}  | %{
+Get-MessageTrackingLog -Sender <mddressail_a> -EventID "SEND" -Start "02/18/2013 0:00:00" -End "03/06/2013 23:59:00" } |
 Select-Object Timestamp,Sender,@{l="Recipients";e={$_.Recipients -join " "}},MessageSubject |
 Sort-Object -Property Timestamp  | Export-Csv C:\TEMP\report.txt -encoding unicode
+
+#Статистика по размерам ящиков в базах Exchange
+$Bases = <DB_Name>,<DB_Name>,<DB_Name>
+$( ForEach ( $Base in $Bases ) { Get-Mailbox -Database $Base } ) |
+Select-Object Alias, Database, @{ Name = "Size"; Expression = { $Size = Get-MailboxStatistics $_.name ; $Size.totalItemsize}} |
+Sort-Object -Property Size -Descending | Export-Csv -Path d:\stat.csv
+
+#10 самых маленьких ящиков в базе Exchange
+$Bases = <DB_Name>,<DB_Name>,<DB_Name>
+$( ForEach ( $Base in $Bases ) { Get-Mailbox -Database $Base } ) |
+Select-Object Alias, Database, @{ Name = "Size"; Expression = { $Size = Get-MailboxStatistics $_.name ; $Size.totalItemsize}} |
+Sort-Object -Property Size | Select-Object -First 10
 
 #Создать ящики
 Import-Csv d:\m.csv |
@@ -64,6 +76,35 @@ New-Mailbox -Alias $_.mailbox -Password (ConvertTo-SecureString <your_password> 
 Write-Host -ForegroundColor Green 'Прописываем менеджера и комментарий' ; $_.username
 Set-ADUser -Identity $_.mailbox -Manager $_.username -Replace @{'info'=<комментарий>}
 }
+
+#Создать ящики 2
+"PCC" | %{
+Write-Host -ForegroundColor Green 'Создаем ящик' ; $_
+New-Mailbox -Alias $_ -Password (ConvertTo-SecureString <your_password> -AsPlainText -Force) -Database <DB_Name> -DisplayName $_ -FirstName $_ -LastName $_ -Name $_ -SamAccountName $_ -UserPrincipalName (@($_ + '@sochi-2014.ru'))
+Write-Host -ForegroundColor Green 'Прописываем менеджера и комментарий' ; $_.username
+Start-Sleep 3
+Set-ADUser -Identity $_ -Manager MBusygina -Replace @{'info'=<комментарий>}
+}
+"PPopov","MBusygina","AIgnatiev"   | %{
+Add-ADPermission -Identity PCC -User $_ -Extendedrights "Send As"
+}
+"PPopov","MBusygina","AIgnatiev","ssmikhailova","evolostnova","ALysak","AKurilovich","EGuryeva" | %{
+Add-MailboxPermission -Identity PCC -User $_ -AccessRights 'FullAccess'
+}
+
+#Создать переговорки
+ | %{
+Write-Host -ForegroundColor Green 'Создаем ящик' ; $_
+New-Mailbox -Alias $_ -Password (ConvertTo-SecureString <your_password> -AsPlainText -Force) -Database <DB_Name> -DisplayName $_ -FirstName $_ -LastName $_ -Name $_ -SamAccountName $SAM -UserPrincipalName (@($_ + '@sochi-2014.ru')) -Room
+Write-Host -ForegroundColor Green 'Прописываем менеджера и комментарий'
+Start-Sleep 3
+Set-ADUser -Identity $SAM -Manager <User> -Replace @{'info'=<комментарий>}
+Write-Host -ForegroundColor Green 'Прописываем политику'
+Set-CalendarProcessing -Identity $SAM -ResourceDelegates <User> -RequestInPolicy <User> -AllRequestInPolicy $TRUE
+Get-Mailbox $SAM
+}
+
+
 
 #Дать права на почтовый ящик
 Import-Csv d:\m.csv | %{

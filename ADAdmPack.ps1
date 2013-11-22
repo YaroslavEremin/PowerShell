@@ -20,8 +20,9 @@ Add-ADGroupMember <GroupName1> -members (Get-ADGroupMember <GroupName2>) -PassTh
 Get-ADUser -SearchBase "OU=Staff,DC=contoso,DC=com" -Filter * | % {Add-ADGroupMember -Identity <GroupName> -Members $_}
 
 #Вывод в файл списка пользователе с отбором по параметру:
-Get-ADUser -Filter {description -eq <your_param>} -Properties description,displayname,userPrincipalName |
-Select-Object -Property description,displayname,userPrincipalName |
+<your_param>,<your_param>,<your_param> | % {
+Get-ADUser -Filter {description -eq <your_param>} -Properties description,displayname,sAMAccountName } |
+Select-Object -Property description,displayname,sAMAccountName |
 Export-Csv -Delimiter ";" -Path d:\Userlist.csv -encoding "unicode"
 
 #Поиск пользователей у которых не заполнен атрибут Организация
