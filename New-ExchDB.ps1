@@ -1,4 +1,30 @@
-﻿function New-ExchDB {
+﻿Function Get-DBNumber {
+<#
+  .SYNOPSIS
+  This function returns the first pass in the numbering of mail databases Exchange
+  .DESCRIPTION
+  The search is performed by isolating the mask numbers of databases. Then construct a sorted list and Ichetu first pass in the numbering
+  .EXAMPLE
+   $n = Get-DBNumber
+  #>
+$NumbersArray = @()
+[int]$Counter = 0
+$DBArray = (Get-MailboxDatabase | Where-Object -Property Name -like -Value "DB*" | Select-Object Name)
+ForEach ($DBName in $DBArray) {
+$Number = [regex]::match($DBName.Name,'\d{2,3}').Value
+$NumbersArray += ($Number -as [int])
+}
+$NumbersArray = $NumbersArray | Sort-Object
+While (( $NumbersArray[$Counter] - $Counter) -le 1) {
+$Counter++
+}
+$DBNumber = ($Counter + 1) -as [string]
+if ($DBNumber.Length -eq 1) {
+$DBNumber = "0$DBNumber"
+}
+Return "$DBNumber"
+}
+function New-ExchDB {
 <#
   .SYNOPSIS
   Function creating new Exchange database and set qouta
@@ -41,10 +67,8 @@ ElseIf ($Counter -gt 1) {
 write-host -ForegroundColor Red "Faund more then one server"
 }
 If ($NewDBName -eq "Value") {
-write-host "Generation DB name by counter mailbox DBs"
-$DBArray = Get-MailboxDatabase
-$NewDBName = "DB" + $DBArray.Count + "-"+ $DBType
-$NewDBName
+$NewDBName = Get-DBNumber
+$NewDBName = "DB$NewDBName-$DBType"
 }
 $NewDBName
 }
@@ -91,8 +115,11 @@ $City = "Сочи"
 } else {
 $City = "Москва"
 }
+$emailFrom = 
+$emailTo =
+$SmtpServer = 
 $MailBody = "Новая почтовая база<br><p>Сервер: <b>$ExchSrv</b><br>База: <b>$NewDBName</b><br>Расположение: <b>$City</b></p>"
-Send-MailMessage -From ($env:USERNAME + "@sochi2014.com") -Subject "Создана новая почтовая база $NewDBName" -To 'sysadmins@SOCHI2014.COM' -Body $MailBody -BodyAsHtml -Encoding Unicode -SmtpServer exch-cas02
+Send-MailMessage -From $emailFrom -Subject "Создана новая почтовая база $NewDBName" -To $emailTo -Body $MailBody -BodyAsHtml -Encoding Unicode -SmtpServer $SmtpServer
 write-host -ForegroundColor Green "Done"
 Start-Sleep 2
 }
