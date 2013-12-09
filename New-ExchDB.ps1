@@ -7,29 +7,33 @@
   .EXAMPLE
    $n = Get-DBNumber
   #>
-$NumbersArray = @()
-[int]$Counter = 0
-$DBArray = (Get-MailboxDatabase | Where-Object -Property Name -like -Value "DB*" | Select-Object Name)
-ForEach ($DBName in $DBArray) {
-$Number = [regex]::match($DBName.Name,'\d{2,3}').Value
-$NumbersArray += ($Number -as [int])
-}
-$NumbersArray = $NumbersArray | Sort-Object
-While (( $NumbersArray[$Counter] - $Counter) -le 1) {
-$Counter++
-}
-$DBNumber = ($Counter + 1) -as [string]
-if ($DBNumber.Length -eq 1) {
-$DBNumber = "0$DBNumber"
-}
-Return "$DBNumber"
+    $NumbersArray = @()
+    [int]$Counter = 0
+    $DBArray = (Get-MailboxDatabase | Where-Object -Property Name -like -Value "DB*" | Select-Object Name)
+    ForEach ($DBName in $DBArray) {
+        $Number = [regex]::match($DBName.Name,'\d{2,3}').Value
+        $NumbersArray += ($Number -as [int])
+    }
+    $NumbersArray = $NumbersArray | Sort-Object
+    If ($NumbersArray[($NumbersArray.Count - 1)] -gt $NumbersArray.Count) {
+        While (( $NumbersArray[$Counter] - $Counter) -le 1) {
+            $Counter++
+        }
+        $DBNumber = ($Counter + 1) -as [string]
+    } else {
+        $DBNumber = ($NumbersArray.Count + 1) -as [string]
+    }
+    if ($DBNumber.Length -eq 1) {
+        $DBNumber = "0$DBNumber"
+    }
+    Return "$DBNumber"
 }
 function New-ExchDB {
 <#
   .SYNOPSIS
   Function creating new Exchange database and set qouta
   .DESCRIPTION
-  ----------
+  Function creating new Exchange database and set qouta
   .EXAMPLE
   .\New-ExchDB.ps1 -ExchSrv mb28 -DBType 1G
   .EXAMPLE
@@ -56,7 +60,7 @@ $ExchSrv = $_.Name
 $Counter = $Counter + 1
 }
 }
-write-host -ForegroundColor Green "Target mailbox server is" ; $ExchSrv
+write-host -ForegroundColor Green "Target mailbox server is $ExchSrv"
 $DBArray = Get-MailboxDatabase
 $DBArray.Count
 If ($Counter -eq 0) {
@@ -71,6 +75,7 @@ $NewDBName = Get-DBNumber
 $NewDBName = "DB$NewDBName-$DBType"
 }
 $NewDBName
+Start-Sleep 5
 }
 PROCESS {
 write-host -ForegroundColor Green "Create database folder"
@@ -104,9 +109,20 @@ default {
 write-host -ForegroundColor Red "Quota not set"
 }
 }
-Start-Sleep 2
 write-host -ForegroundColor Green "Mount database"
-Mount-Database -Identity $NewDBName
+[int]$i = 1
+While(-not((Get-MailboxDatabase DB113-2G -Status).Mounted) -and $i -lt 5) {
+write-host -ForegroundColor DarkGreen "Try to mount database: "$i
+Start-Sleep (3*($i+3))
+$i++
+Mount-Database -Identity $NewDBName | Out-Null
+}
+If ((Get-MailboxDatabase DB113-2G -Status).Mounted) {
+write-host -ForegroundColor Green $NewDBName "successfully mounted"
+} else {
+write-host -ForegroundColor Red $NewDBName "mounting unsuccessfully"
+}
+
 }
 END {
 write-host -ForegroundColor Green "Send infomail"
@@ -115,11 +131,8 @@ $City = "Сочи"
 } else {
 $City = "Москва"
 }
-$emailFrom = 
-$emailTo =
-$SmtpServer = 
 $MailBody = "Новая почтовая база<br><p>Сервер: <b>$ExchSrv</b><br>База: <b>$NewDBName</b><br>Расположение: <b>$City</b></p>"
-Send-MailMessage -From $emailFrom -Subject "Создана новая почтовая база $NewDBName" -To $emailTo -Body $MailBody -BodyAsHtml -Encoding Unicode -SmtpServer $SmtpServer
+Send-MailMessage -From ([regex]::replace($env:USERNAME,'-adm','') + "@sochi2014.com") -Subject "Создана новая почтовая база $NewDBName" -To 'sysadmins@SOCHI2014.COM' -Body $MailBody -BodyAsHtml -Encoding UTF8 -SmtpServer exch-cas02
 write-host -ForegroundColor Green "Done"
 Start-Sleep 2
 }
