@@ -3,11 +3,13 @@
 Function Move-MailboxesCustom {
 <#
   .SYNOPSIS
-  ?
+  This function move mailboxes
   .DESCRIPTION
   ?
   .EXAMPLE
-  ?
+  Move-MailboxesCustom ECXH-MB1 1G
+  .EXAMPLE
+  Move-MailboxesCustom -ServerMask ECXH-MB1 -Type 1G
   #>
   [CmdLetBinding()]
   Param(
@@ -19,7 +21,7 @@ Function Move-MailboxesCustom {
 )
     #Путь куда сохраняется лог
     $LogPath = "D:\logs"
-    $LogPath = $LogPath + "\Move-MailboxesCustom" + (Get-Date).tostring("yyyyMMdd") + ".txt"
+    $LogPath = $LogPath + "\Move-MailboxesCustom-$ServerMask-$Type-" + (Get-Date).tostring("yyyyMMdd") + ".txt"
     write-host -ForegroundColor Green "Logfile --> $LogPath"
     Switch -regex ($Type) {
         "200M" { $Limit = 250 }
