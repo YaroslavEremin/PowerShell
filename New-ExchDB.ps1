@@ -111,13 +111,13 @@ write-host -ForegroundColor Red "Quota not set"
 }
 write-host -ForegroundColor Green "Mount database"
 [int]$i = 1
-While(-not((Get-MailboxDatabase DB113-2G -Status).Mounted) -and $i -lt 5) {
+While(-not((Get-MailboxDatabase $NewDBName -Status).Mounted) -and $i -lt 5) {
 write-host -ForegroundColor DarkGreen "Try to mount database: "$i
 Start-Sleep (3*($i+3))
 $i++
 Mount-Database -Identity $NewDBName | Out-Null
 }
-If ((Get-MailboxDatabase DB113-2G -Status).Mounted) {
+If ((Get-MailboxDatabase $NewDBName -Status).Mounted) {
 write-host -ForegroundColor Green $NewDBName "successfully mounted"
 } else {
 write-host -ForegroundColor Red $NewDBName "mounting unsuccessfully"

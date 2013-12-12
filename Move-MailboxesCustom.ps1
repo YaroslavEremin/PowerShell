@@ -61,12 +61,14 @@ Function Move-MailboxesCustom {
             $MovingMailboxes.Alias | %{write-host -ForegroundColor Green $_}
             $MovingMailboxes.Alias | Out-File -Encoding unicode -FilePath $LogPath -Append
             ForEach ($Mailbox in $MovingMailboxes) {
+                If ($Bases.Count -gt 1) {
                 $TargetDB = $Bases[$Bases.Count - 1]
                 write-host -ForegroundColor DarkGreen "Moving" $Mailbox.Alias "to" $TargetDB.Name
                 New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name | Out-Null
                 $TargetDB.Mailboxes++
                 $Bases[0].Mailboxes--
-                $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit -and $_.Mailboxes -gt 0 } 
+                $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit -and $_.Mailboxes -gt 0 }
+                } 
             }
             $line
         }
