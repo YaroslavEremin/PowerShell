@@ -52,6 +52,33 @@ $sAMAccountName = $CurrentUser.sAMAccountName
 Add-ADGroupMember <GroupName> -members $sAMAccountName -PassThru
 }) 
 
+#Сбросить пароль без галочки и разблокировать учетку
+$Users = "user1","user2","user3"
+$Users | %{
+Set-ADAccountPassword -Identity $_ -NewPassword (ConvertTo-SecureString -AsPlainText "@vyt3bz!" -Force) -Reset
+Unlock-ADAccount -Identity $_
+Set-ADUser -Identity $_ -ChangePasswordAtLogon $False
+}
+
+#Импорт DNS-записей из CSV-файла
+$DNSServer = "DC-07"
+$DNSZone = "Sochi-2014.ru"
+$recordType = "A"
+Import-Csv D:\adddns.csv | % {
+$recordName = $_.name 
+$recordAddress = $_.IP
+$cmdDelete = "dnscmd $DNSServer /RecordDelete $DNSZone $recordName $recordType /f" 
+# Build our DNSCMD ADD command syntax 
+$cmdAdd = "dnscmd $DNSServer /RecordAdd $DNSZone $recordName $recordType $recordAddress" 
+# Now we execute the command 
+Write-Host "Running the following command: $cmdDelete" 
+#&$cmdDelete
+Invoke-Expression $cmdDelete 
+Write-Host "Running the following command: $cmdAdd"
+#&$cmdAdd 
+Invoke-Expression  $cmdAdd 
+}
+
 #Поиск по списку, для проверки отключенна ли учетная запись (512 - Active, 514 - Disable)
 $UserDesktop = New-Object –com Shell.Application
 $UserDesktopPath = ($UserDesktop.namespace(0x10)).Self.Path

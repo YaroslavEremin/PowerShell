@@ -65,10 +65,13 @@ $DBArray = Get-MailboxDatabase
 $DBArray.Count
 If ($Counter -eq 0) {
 write-host -ForegroundColor Red "Can`t find mailbox server.Please type corrent value"
-#написать выход из функции
+Start-Sleep 5
+return
 }
 ElseIf ($Counter -gt 1) {
 write-host -ForegroundColor Red "Faund more then one server"
+Start-Sleep 5
+return
 }
 If ($NewDBName -eq "Value") {
 $NewDBName = Get-DBNumber
@@ -110,6 +113,7 @@ write-host -ForegroundColor Red "Quota not set"
 }
 }
 write-host -ForegroundColor Green "Mount database"
+#Mount mailbox database
 [int]$i = 1
 While(-not((Get-MailboxDatabase $NewDBName -Status).Mounted) -and $i -lt 5) {
 write-host -ForegroundColor DarkGreen "Try to mount database: "$i
@@ -125,6 +129,7 @@ write-host -ForegroundColor Red $NewDBName "mounting unsuccessfully"
 
 }
 END {
+#Send infomail
 write-host -ForegroundColor Green "Send infomail"
 if ($ExchSrv -match "mb2") {
 $City = "Сочи"

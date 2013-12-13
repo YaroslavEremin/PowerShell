@@ -1,86 +1,125 @@
 ﻿
 
-Function Move-MailboxesCustom {
+Function Move-Mailboxes {
 <#
   .SYNOPSIS
-  This function move mailboxes
+  This function move mailboxes 
   .DESCRIPTION
   ?
   .EXAMPLE
-  Move-MailboxesCustom ECXH-MB1 1G
+  "user1","user2","user3" | Move-Mailboxes ECXH-MB1
   .EXAMPLE
-  Move-MailboxesCustom -ServerMask ECXH-MB1 -Type 1G
+  Get-aduser -Filter {title -like "Manager"} | Move-Mailboxes -ServerMask ECXH-MB1 -NoAction
   #>
   [CmdLetBinding()]
   Param(
-    [Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $True)]
+    [Parameter(Mandatory = $True, Position = 0, ValueFromPipeline = $False)]
     [String]$ServerMask,
      
     [Parameter(Mandatory = $True, Position = 1, ValueFromPipeline = $True)]
-    [String]$Type
+    [String]$UserName,
+
+    [Parameter(Mandatory = $False, Position = 2, ValueFromPipeline = $False)]
+    [switch]$NoAction
 )
-    #Путь куда сохраняется лог
-    $LogPath = "D:\logs"
-    $LogPath = $LogPath + "\Move-MailboxesCustom-$ServerMask-$Type-" + (Get-Date).tostring("yyyyMMdd") + ".txt"
-    write-host -ForegroundColor Green "Logfile --> $LogPath"
-    Switch -regex ($Type) {
-        "200M" { $Limit = 250 }
-        "1G" { $Limit = 50 }
-        "2G" { $Limit = 25 }
-        "5G" { $Limit = 10 }
-        "20G" { $Limit = 3 }
-    }
-    #If (-not(Get-MoveRequest)) {
-        $Bases = (Get-MailboxDatabase) | Where-Object {$_.Server -like ($ServerMask + "*") -and -not($_.Name -like "EXT-*") -and ($_.Name -like ("*" + $Type)) } | Select-Object Name,@{Name="Mailboxes";Expression={(@(Get-Mailbox -Database $_.name)).Count}} | Sort-Object -Property Mailboxes
-        write-host -ForegroundColor Green "Current state"
-        $Bases | Format-Table -AutoSize
-        $Bases | Format-Table -AutoSize | Out-File -Encoding unicode -FilePath $LogPath -Append
-        $CrowdedBases = $Bases | Where-Object { $_.Mailboxes -gt $Limit }
-        $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit -and $_.Mailboxes -gt 0 }
-        If ($CrowdedBases) {
-            ForEach ($Base in $CrowdedBases) {
-                $N = $Base.Mailboxes - $Limit
-                $MovingMailboxes = Get-Mailbox -Database $Base.Name
-                #$MovingMailboxes = $MovingMailboxes | Select-Object Alias,@{ Name = "Size"; Expression = { $Size = Get-MailboxStatistics $_.name ; $Size.totalItemsize}} | Sort-Object -Property Size
-                $MovingMailboxes = $MovingMailboxes | Select-Object -First $N
-                $MovingMailboxes.Alias | %{write-host -ForegroundColor Green $_}
-                $MovingMailboxes.Alias | Out-File -Encoding unicode -FilePath $LogPath -Append
-                ForEach ($Mailbox in $MovingMailboxes) {
-                    $TargetDB = $Bases[$Bases.Count - 1]
-                    write-host -ForegroundColor Green "Moving" $Mailbox.Alias "from crowded base" $Base.Name "to" $TargetDB.Name
-                    New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name | Out-Null
-                    $TargetDB.Mailboxes++
-                    $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit -and $_.Mailboxes -gt 0 } 
+BEGIN {
+    $Bases = (Get-MailboxDatabase) | Where-Object {$_.Server -like ($ServerMask + '*') -and -not($_.Name -like "EXT-*")  } | Select-Object Name,@{Name='Type';Expression={[regex]::replace($_.name,'^.*-','')}},@{Name="Mailboxes";Expression={(@(Get-Mailbox -Database $_.name)).Count}}
+    $Bases200M = $Bases | Where-Object {$_.Type -eq '200M'} | Sort-Object Mailboxes
+    $Bases1G = $Bases | Where-Object {$_.Type -eq '1G'} | Sort-Object Mailboxes
+    $Bases2G = $Bases | Where-Object {$_.Type -eq '2G'} | Sort-Object Mailboxes
+    $Bases5G = $Bases | Where-Object {$_.Type -eq '5G'} | Sort-Object Mailboxes
+    $Bases20G = $Bases | Where-Object {$_.Type -eq '20G'} | Sort-Object Mailboxes
+    #Задание целевых баз для перемещения, с минимальным количеством ящиков
+    [int]$200Mi = 0
+    [int]$1Gi = 0
+    [int]$2Gi = 0
+    [int]$5Gi = 0
+    [int]$20Gi = 0
+    $DB200M = $Bases200M[$200Mi].Name
+    $200Mcount = $Bases200M[$200Mi].Mailboxes
+    write-host -ForegroundColor Green $DB200M " - " $200Mcount
+    $DB1G = $Bases1G[$1Gi].Name
+    $1Gicount = $Bases1G[$1Gi].Mailboxes
+    write-host -ForegroundColor Green "$DB1G" " - " $1Gicount
+    $DB2G = $Bases2G[$2Gi].Name
+    $2Gcount = $Bases2G[$2Gi].Mailboxes
+    write-host -ForegroundColor Green "$DB2G" " - " $2Gcount
+    $DB5G = $Bases5G[$5Gi].Name
+    $5Gicount = $Bases5G[$5Gi].Mailboxes
+    write-host -ForegroundColor Green "$DB5G" " - " $5Gicount
+    $DB20G = $Bases20G[$20Gi].Name
+    $20Gicount = $Bases20G[$20Gi].Mailboxes
+    write-host -ForegroundColor Green "$DB20G" " - " $20Gicount
+}
+PROCESS {
+        $User = Get-ADUser -Identity $UserName
+        $MailboxDB = (Get-Mailbox -Identity $User.sAMAccountName).database
+        Switch -RegEx ($MailboxDB) {
+            "200M" {
+                If (!($NoAction)){ New-MoveRequest -Identity $User.sAMAccountName -TargetDatabase $DB200M } else {
+                write-host -ForegroundColor Yellow "Move "$User.sAMAccountName" to "$DB200M}
+                $200Mcount++
+                If ($200Mcount -eq 250) {
+                    $200Mi++
+                    $DB200M = $Bases200M[$200Mi].Name
+                    $200Mcount = $Bases200M[$200Mi].Mailboxes
+                }
+            }
+            "1G" {
+                If (!($NoAction)){ New-MoveRequest -Identity $User.sAMAccountName -TargetDatabase $DB1G } else {
+                write-host -ForegroundColor Yellow "Move "$User.sAMAccountName" to "$DB1G}
+                $1Gcount++
+                If ($1Gcount -eq 50) {
+                    $1Gi++
+                    $DB1G = $Bases1G[$1Gi].Name
+                    $1Gicount = $Bases1G[$1Gi].Mailboxes
+                 }
+            }
+            "2G" {
+                If (!($NoAction)){ New-MoveRequest -Identity $User.sAMAccountName -TargetDatabase $DB2G } else {
+                write-host -ForegroundColor Yellow "Move "$User.sAMAccountName" to "$DB2G}
+                $2Gcount++
+                If ($2Gcount -eq 25) {
+                    $2Gi++
+                    $DB2G = $Bases2G[$2Gi].Name
+                    $2Gcount = $Bases2G[$2Gi].Mailboxes
+                }
+            }
+            "5G" {
+                If (!($NoAction)){ New-MoveRequest -Identity $User.sAMAccountName -TargetDatabase $DB5G } else {
+                write-host -ForegroundColor Yellow "Move "$User.sAMAccountName" to "$DB5G}
+                $5Gcount++
+                If ($5Gcount -eq 10) {
+                    $5Gi++
+                    $DB5G = $Bases5G[$5Gi].Name
+                    $5Gicount = $Bases5G[$5Gi].Mailboxes
+                }
+            }
+            "20G" {
+                If (!($NoAction)){  New-MoveRequest -Identity $User.sAMAccountName -TargetDatabase $DB20G } else {
+                write-host -ForegroundColor Yellow "Move "$User.sAMAccountName" to "$DB20G}
+                $20Gcount++
+                If ($20Gcount -eq 3) {
+                    $20Gi++
+                    $DB20G = $Bases20G[$20Gi].Name
+                    $20Gicount = $Bases20G[$20Gi].Mailboxes
                 }
             }
         }
-        $line = "=========================================================="
-        $line | Out-File -Encoding unicode -FilePath $LogPath -Append
-        $line
-        While ($Bases.Count -gt 1) {
-            $MovingMailboxes = Get-Mailbox -Database $Bases[0].Name
-            write-host -ForegroundColor Green "Next mailboxes will be moved:"
-            $MovingMailboxes.Alias | %{write-host -ForegroundColor Green $_}
-            $MovingMailboxes.Alias | Out-File -Encoding unicode -FilePath $LogPath -Append
-            ForEach ($Mailbox in $MovingMailboxes) {
-                If ($Bases.Count -gt 1) {
-                $TargetDB = $Bases[$Bases.Count - 1]
-                write-host -ForegroundColor DarkGreen "Moving" $Mailbox.Alias "to" $TargetDB.Name
-                New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name | Out-Null
-                $TargetDB.Mailboxes++
-                $Bases[0].Mailboxes--
-                $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit -and $_.Mailboxes -gt 0 }
-                } 
-            }
-            $line
+        If (!($NoAction)){
+        $UserMoveInfo = Get-MoveRequest -Identity $User.sAMAccountName | Select-Object -Property Alias,Status,SourceDatabase,TargetDatabase,@{name = 'TargetServer'; Expression = {(Get-MailboxDatabase $_.TargetDatabase).Server}}
+        $UserMoveInfo | Format-Table -AutoSize
         }
-        $Bases = (Get-MailboxDatabase) | Where-Object {$_.Server -like ($ServerMask + "*") -and -not($_.Name -like "EXT-*") -and ($_.Name -like ("*" + $Type)) } | Select-Object Name,@{Name="Mailboxes";Expression={(@(Get-Mailbox -Database $_.name)).Count}} | Sort-Object -Property Mailboxes
-        write-host -ForegroundColor Green "New state"
-        $Bases | Format-Table -AutoSize
-        $Bases | Format-Table -AutoSize | Out-File -Encoding unicode -FilePath $LogPath -Append
-        Get-MoveRequest | Select-Object -Property Alias,@{Name='SourceDB';Expression={$_.SourceDatabase}},@{Name="TargetDB";Expression={$_.TargetDatabase}},Status | Sort-Object Alias | Format-Table -AutoSize | Out-File -Encoding unicode -FilePath $LogPath -Append
-   #} else {
-    #    write-host -ForegroundColor Green "Delete move requests before run this function"
-  # }
+}
+END {
+
+}
 }
 
+
+"MMarkin","DSekachev","pbulavin" | Move-Mailboxes -ServerMask ECXH-MB1 -NoAction
+
+$ServerMask = "EXCH-MB2"
+$a = "MMarkin"
+get-type -Type $a
+$a | get-member

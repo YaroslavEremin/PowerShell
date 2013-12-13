@@ -67,6 +67,15 @@ $( ForEach ( $Base in $Bases ) { Get-Mailbox -Database $Base } ) |
 Select-Object Alias, Database, @{ Name = "Size"; Expression = { $Size = Get-MailboxStatistics $_.name ; $Size.totalItemsize}} |
 Sort-Object -Property Size | Select-Object -First 10
 
+#Создать список рассылки
+$group = "name"
+$manager = "user4"
+$Users = "user1","user2","user3"
+$info = "INC0233611 До 30.03.2014"
+New-DistributionGroup -Name $Group -DisplayName $Group -Members $Users -Alias $group -ManagedBy $manager -PrimarySmtpAddress ($group + "@sochi2014.com") -Notes $info -SamAccountName $group
+Get-ADGroupMember $group | Select-Object name,SamAccountName |ft -AutoSize
+
+
 #Создать ящики
 Import-Csv d:\m.csv |
 %{ Write-Host -ForegroundColor Green 'Создаем ящик' ; $_.mailbox
@@ -78,18 +87,24 @@ Set-ADUser -Identity $_.mailbox -Manager $_.username -Replace @{'info'=<комм
 }
 
 #Создать ящики 2
-"PCC" | %{
-Write-Host -ForegroundColor Green 'Создаем ящик' ; $_
-New-Mailbox -Alias $_ -Password (ConvertTo-SecureString <your_password> -AsPlainText -Force) -Database <DB_Name> -DisplayName $_ -FirstName $_ -LastName $_ -Name $_ -SamAccountName $_ -UserPrincipalName (@($_ + '@sochi-2014.ru'))
-Write-Host -ForegroundColor Green 'Прописываем менеджера и комментарий' ; $_.username
+$mailboxes = "name"
+$SendAs = "user1","user2","user3"
+$FullAccess = "user1","user2"
+$Manager = "user4"
+$info = "______"
+$MailboxDB = "DB_name"
+ForEach ( $mail in  $mailboxes ) {
+Write-Host -ForegroundColor Green 'Создаем ящик' ; $mail
+New-Mailbox -Alias $mail -Password (ConvertTo-SecureString '3JJf*n31v(I&' -AsPlainText -Force) -Database $MailboxDB -DisplayName $mail -FirstName $mail -LastName $mail -Name $mail -SamAccountName $mail -UserPrincipalName (@($mail + '@sochi-2014.ru'))
+Write-Host -ForegroundColor Green 'Прописываем менеджера и комментарий'
 Start-Sleep 3
-Set-ADUser -Identity $_ -Manager MBusygina -Replace @{'info'=<комментарий>}
+Set-ADUser -Identity $mail -Manager $Manager -Replace @{'info' = $info}
+ForEach ( $i in $SendAs ) {
+Add-ADPermission -Identity $mail -User $i -Extendedrights "Send As"
 }
-"PPopov","MBusygina","AIgnatiev"   | %{
-Add-ADPermission -Identity PCC -User $_ -Extendedrights "Send As"
+ForEach ( $j in $FullAccess ) {
+Add-MailboxPermission -Identity $mail -User $j -AccessRights 'FullAccess'
 }
-"PPopov","MBusygina","AIgnatiev","ssmikhailova","evolostnova","ALysak","AKurilovich","EGuryeva" | %{
-Add-MailboxPermission -Identity PCC -User $_ -AccessRights 'FullAccess'
 }
 
 #Создать переговорки
@@ -118,3 +133,14 @@ $( ForEach ( $Base in $Bases ) { Get-Mailbox -Database $Base } ) |
 Select-Object Alias, DatabaseName, @{ Name = "Size"; Expression = { $Size = Get-MailboxStatistics $_.name ; $Size.totalItemsize}} |
 Sort-Object -Property Size -Descending |
 Export-Csv -Path d:\stat.csv
+
+#Информация по перемещениям почтовых ящиков со статистикой
+ Get-MoveRequest | Get-MoveRequestStatistics | Select-Object -Property Alias,TotalMailboxSize,PercentComplete,BytesTransferredPerMinute |
+Sort-Object Alias | Format-Table -AutoSize
+#Информация по перемещениям почтовых ящиков
+Get-MoveRequest | Select-Object -Property Alias,Status,SourceDatabase,TargetDatabase,@{name = 'TargetServer'; Expression = {(Get-MailboxDatabase $_.TargetDatabase).Server}} |
+Sort-Object -Property SourceDatabase | Format-Table -AutoSize
+#Перезапусть провалившиеся перемещения
+$Users = Get-MoveRequest -MoveStatus Failed
+Get-MoveRequest -MoveStatus Failed | Remove-MoveRequest
+$Users | %{ New-MoveRequest $_.Alias -TargetDatabase $_.TargetDatabase }

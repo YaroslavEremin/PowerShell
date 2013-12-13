@@ -79,8 +79,5 @@ Function Move-MailboxesCustom {
         $Bases | Format-Table -AutoSize
         $Bases | Format-Table -AutoSize | Out-File -Encoding unicode -FilePath $LogPath -Append
         Get-MoveRequest | Select-Object -Property Alias,@{Name='SourceDB';Expression={$_.SourceDatabase}},@{Name="TargetDB";Expression={$_.TargetDatabase}},Status | Sort-Object Alias | Format-Table -AutoSize | Out-File -Encoding unicode -FilePath $LogPath -Append
-   #} else {
-    #    write-host -ForegroundColor Green "Delete move requests before run this function"
-  # }
 }
 
