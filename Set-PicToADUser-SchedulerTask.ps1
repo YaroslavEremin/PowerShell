@@ -50,7 +50,7 @@ ForEach ($NewPic in $NewPics) {
 $UserName = [regex]::replace($NewPic.Name,'.jpg$','')
 $path = $PicsDir + '\' + $NewPic.Name
 #Set pictures for user
-#Import-RecipientDataProperty -Identity $UserName -Picture -FileData ([Byte[]]$(Get-Content -path $path -Encoding Byte -ReadCount 0))
+Import-RecipientDataProperty -Identity $UserName -Picture -FileData ([Byte[]]$(Get-Content -path $path -Encoding Byte -ReadCount 0))
 $LogObject = Select-Object -InputObject $NewPic -Property Name,LastWriteTime
 #Record job to a log file
 $NewPics = Sort-Object -InputObject $NewPics -Property LastWriteTime
@@ -81,8 +81,5 @@ Format-Table -InputObject $LogObject -AutoSize | Out-File -FilePath $LogFilePath
 Move-Item -Path $path -Destination ($ArchivePicDir + "\" + $NewPic.Name) -Force
 }
 Remove-PSSession $Session
-<<<<<<< .mine
 }
-=======
 }
->>>>>>> .theirs

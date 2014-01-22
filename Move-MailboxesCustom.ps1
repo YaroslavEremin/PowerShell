@@ -36,12 +36,12 @@ Function Move-MailboxesCustom {
         $Bases | Format-Table -AutoSize
         $Bases | Format-Table -AutoSize | Out-File -Encoding unicode -FilePath $LogPath -Append
         $CrowdedBases = $Bases | Where-Object { $_.Mailboxes -gt $Limit }
-        $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit }
+        $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit -and $_.Mailboxes -gt 0}
         If ($CrowdedBases) {
             ForEach ($Base in $CrowdedBases) {
                 $N = $Base.Mailboxes - $Limit
                 $MovingMailboxes = Get-Mailbox -Database $Base.Name
-                #$MovingMailboxes = $MovingMailboxes | Select-Object Alias,@{ Name = "Size"; Expression = { $Size = Get-MailboxStatistics $_.name ; $Size.totalItemsize}} | Sort-Object -Property Size
+                $MovingMailboxes = $MovingMailboxes | Select-Object Alias,@{ Name = "Size"; Expression = { $Size = Get-MailboxStatistics $_.name ; $Size.totalItemsize}} | Sort-Object -Property Size
                 $MovingMailboxes = $MovingMailboxes | Select-Object -First $N
                 $MovingMailboxes.Alias | %{write-host -ForegroundColor Green $_}
                 $MovingMailboxes.Alias | Out-File -Encoding unicode -FilePath $LogPath -Append
@@ -71,7 +71,8 @@ Function Move-MailboxesCustom {
                 return
                 }
                 write-host -ForegroundColor DarkGreen "Moving" $Mailbox.Alias "to" $TargetDB.Name
-                New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name  -BadItemLimit 100 -AcceptLargeDataLoss | Out-Null
+                New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name | Out-Null
+                #New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name  -BadItemLimit 100 -AcceptLargeDataLoss | Out-Null
                 $TargetDB.Mailboxes++
                 $Bases[0].Mailboxes--
                 $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit -and $_.Mailboxes -gt 0 }

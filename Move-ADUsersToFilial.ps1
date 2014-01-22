@@ -15,11 +15,11 @@
     write-host -ForegroundColor Green "Logfile --> $LogPath"
     #Создание списка баз
     $Bases = (Get-MailboxDatabase) | Where-Object {$_.Server -like 'EXCH-MB2*' -and -not($_.Name -like "EXT-*")  } | Select-Object Name,@{Name='Type';Expression={[regex]::replace($_.name,'^.*-','')}},@{Name="Mailboxes";Expression={(@(Get-Mailbox -Database $_.name)).Count}}
-    $Bases200M = $Bases | Where-Object {$_.Type -eq '200M'} | Sort-Object Mailboxes
-    $Bases1G = $Bases | Where-Object {$_.Type -eq '1G'} | Sort-Object Mailboxes
-    $Bases2G = $Bases | Where-Object {$_.Type -eq '2G'} | Sort-Object Mailboxes
-    $Bases5G = $Bases | Where-Object {$_.Type -eq '5G'} | Sort-Object Mailboxes
-    $Bases20G = $Bases | Where-Object {$_.Type -eq '20G'} | Sort-Object Mailboxes
+    $Bases200M = $Bases | Where-Object {$_.Type -eq '200M' -and $_.Mailboxes -lt 250} | Sort-Object Mailboxes -Descending
+    $Bases1G = $Bases | Where-Object {$_.Type -eq '1G' -and $_.Mailboxes -lt 50} | Sort-Object Mailboxes -Descending
+    $Bases2G = $Bases | Where-Object {$_.Type -eq '2G' -and $_.Mailboxes -lt 25} | Sort-Object Mailboxes -Descending
+    $Bases5G = $Bases | Where-Object {$_.Type -eq '5G' -and $_.Mailboxes -lt 10} | Sort-Object Mailboxes -Descending
+    $Bases20G = $Bases | Where-Object {$_.Type -eq '20G' -and $_.Mailboxes -lt 3} | Sort-Object Mailboxes -Descending
     #Задание целевых баз для перемещения, с минимальным количеством ящиков
     [int]$200Mi = 0
     [int]$1Gi = 0
@@ -48,6 +48,10 @@
     $DB20G | Out-File -Encoding unicode -FilePath $LogPath -Append
     #Создание списка пользователей для перемещения
     $MovingUsers = Get-ADUser -SearchBase "OU=Moscow,DC=SOCHI-2014,DC=RU" -Filter {extFilial -like '*'} -Properties description,extFilial,distinguishedName | Select-Object -Property sAMAccountName,description,@{Name='OrganizationalUnit';Expression={[regex]::match($_.distinguishedName,'OU.*').Value}} | Sort-Object -Property sAMAccountName
+    #$MovingUsers = Get-ADUser -SearchBase "OU=Moscow,DC=SOCHI-2014,DC=RU" -Filter {extFilial -like '*'} -Properties description,extFilial,distinguishedName |
+    #Select-Object -Property sAMAccountName,description,@{Name='OrganizationalUnit';Expression={[regex]::match($_.distinguishedName,'OU.*').Value}},@{Name='Database';Expression={(Get-Mailbox $_.sAMAccountName).database}} |
+    ? {$_.database -match "2G"} | Sort-Object -Property sAMAccountName
+    #$MovingUsers = $MovingUsers | Select-Object -First 20
     $MovingUsers
     $MovingUsers.sAMAccountName | Get-Mailbox | Select-Object alias,servername,database,@{ Name = "Size"; Expression = { $Size = Get-MailboxStatistics $_.name ; $Size.totalItemsize}} |Format-Table -AutoSize | Out-File -Encoding unicode -FilePath $LogPath -Append
     #Удаление завершенных перемещений ящиков
@@ -63,7 +67,7 @@ PROCESS {
                 If (!($NoAction)){ New-MoveRequest -Identity $User.sAMAccountName -TargetDatabase $DB200M } else {
                 write-host -ForegroundColor Yellow "Move "$User.sAMAccountName" to "$DB200M}
                 $200Mcount++
-                If ($200Mcount -eq 250) {
+                If ($200Mcount -ge 250) {
                     $200Mi++
                     $DB200M = $Bases200M[$200Mi].Name
                     $200Mcount = $Bases200M[$200Mi].Mailboxes
@@ -73,7 +77,7 @@ PROCESS {
                 If (!($NoAction)){ New-MoveRequest -Identity $User.sAMAccountName -TargetDatabase $DB1G } else {
                 write-host -ForegroundColor Yellow "Move "$User.sAMAccountName" to "$DB1G}
                 $1Gcount++
-                If ($1Gcount -eq 50) {
+                If ($1Gcount -ge 50) {
                     $1Gi++
                     $DB1G = $Bases1G[$1Gi].Name
                     $1Gicount = $Bases1G[$1Gi].Mailboxes
@@ -83,7 +87,7 @@ PROCESS {
                 If (!($NoAction)){ New-MoveRequest -Identity $User.sAMAccountName -TargetDatabase $DB2G } else {
                 write-host -ForegroundColor Yellow "Move "$User.sAMAccountName" to "$DB2G}
                 $2Gcount++
-                If ($2Gcount -eq 25) {
+                If ($2Gcount -ge 25) {
                     $2Gi++
                     $DB2G = $Bases2G[$2Gi].Name
                     $2Gcount = $Bases2G[$2Gi].Mailboxes
@@ -93,7 +97,7 @@ PROCESS {
                 If (!($NoAction)){ New-MoveRequest -Identity $User.sAMAccountName -TargetDatabase $DB5G } else {
                 write-host -ForegroundColor Yellow "Move "$User.sAMAccountName" to "$DB5G}
                 $5Gcount++
-                If ($5Gcount -eq 10) {
+                If ($5Gcount -ge 10) {
                     $5Gi++
                     $DB5G = $Bases5G[$5Gi].Name
                     $5Gicount = $Bases5G[$5Gi].Mailboxes
@@ -103,24 +107,28 @@ PROCESS {
                 If (!($NoAction)){  New-MoveRequest -Identity $User.sAMAccountName -TargetDatabase $DB20G } else {
                 write-host -ForegroundColor Yellow "Move "$User.sAMAccountName" to "$DB20G}
                 $20Gcount++
-                If ($20Gcount -eq 3) {
+                If ($20Gcount -ge 3) {
                     $20Gi++
                     $DB20G = $Bases20G[$20Gi].Name
                     $20Gicount = $Bases20G[$20Gi].Mailboxes
                 }
             }
         }
-        If (!($NoAction)){
-        $UserMoveInfo = Get-MoveRequest -Identity $User.sAMAccountName | Select-Object -Property Alias,Status,SourceDatabase,TargetDatabase,@{name = 'TargetServer'; Expression = {(Get-MailboxDatabase $_.TargetDatabase).Server}}
-        $UserMoveInfo | Format-Table -AutoSize
-        }
         #Задание целевого OU для перемещения
         $NewPath = [regex]::replace($User.OrganizationalUnit,'Moscow','Sochi')
         ($User.sAMAccountName + "-->" + $NewPath)
         Out-File -InputObject ($User.sAMAccountName + "-->" + $User.OrganizationalUnit) -Encoding unicode -FilePath $LogPath -Append
         Out-File -InputObject ($User.sAMAccountName + "-->" + $NewPath) -Encoding unicode -FilePath $LogPath -Append
-        #Перемещение учетной записи в Сочинский OU
-        If (!($NoAction)){ Get-ADUser -Identity $User.sAMAccountName | Move-ADObject -TargetPath $NewPath }
+        If (!($NoAction)){
+            #Перемещение почтового ящика в сочинскую базу
+            $UserMoveInfo = Get-MoveRequest -Identity $User.sAMAccountName | Select-Object -Property Alias,Status,SourceDatabase,TargetDatabase,@{name = 'TargetServer'; Expression = {(Get-MailboxDatabase $_.TargetDatabase).Server}}
+            $UserMoveInfo | Format-Table -AutoSize
+            #Перемещение учетной записи в Сочинский OU
+            Get-ADUser -Identity $User.sAMAccountName | Move-ADObject -TargetPath $NewPath
+            #Изменение участия в рассылках
+            Remove-ADGroupMember -Identity "Sochi2014_msk" -Members $User.sAMAccountName -PassThru -Confirm:$False -ErrorAction SilentlyContinue | Out-Null
+            Add-ADGroupMember -Identity "sochioffice" -members $User.sAMAccountName -PassThru -Confirm:$False -ErrorAction SilentlyContinue | Out-Null
+        }
     }
     #Создание списка пользователей перемещение ящиков которых окончилось неудачей
     $FailedUsers = (Get-MoveRequest -MoveStatus Failed).Alias
@@ -132,7 +140,7 @@ PROCESS {
             "200M" {
                 If (!($NoAction)){ New-MoveRequest -Identity $User.Alias -TargetDatabase $DB200M }
                 $200Mcount++
-                If ($200Mcount -eq 250) {
+                If ($200Mcount -ge 250) {
                     $200Mi++
                     $DB200M = $Bases200M[$200Mi].Name
                     $200Mcount = $Bases200M[$200Mi].Mailboxes
@@ -141,7 +149,7 @@ PROCESS {
             "1G" {
                 If (!($NoAction)){ New-MoveRequest -Identity $User.Alias -TargetDatabase $DB1G }
                  $1Gcount++
-                 If ($1Gcount -eq 50) {
+                 If ($1Gcount -ge 50) {
                     $1Gi++
                     $DB1G = $Bases1G[$1Gi].Name
                     $1Gicount = $Bases1G[$1Gi].Mailboxes
@@ -150,7 +158,7 @@ PROCESS {
             "2G" {
                 If (!($NoAction)){ New-MoveRequest -Identity $User.Alias -TargetDatabase $DB2G }
                 $2Gcount++
-                If ($2Gcount -eq 25) {
+                If ($2Gcount -ge 25) {
                     $2Gi++
                     $DB2G = $Bases2G[$2Gi].Name
                     $2Gcount = $Bases2G[$2Gi].Mailboxes
@@ -159,7 +167,7 @@ PROCESS {
             "5G" {
                 If (!($NoAction)){ New-MoveRequest -Identity $User.Alias -TargetDatabase $DB5G }
                 $5Gcount++
-                If ($5Gcount -eq 10) {
+                If ($5Gcount -ge 10) {
                     $5Gi++
                     $DB5G = $Bases5G[$5Gi].Name
                     $5Gicount = $Bases5G[$5Gi].Mailboxes
@@ -168,7 +176,7 @@ PROCESS {
             "20G" {
                 If (!($NoAction)){ New-MoveRequest -Identity $User.Alias -TargetDatabase $DB20G }
                 $20Gcount++
-                If ($20Gcount -eq 3) {
+                If ($20Gcount -ge 3) {
                     $20Gi++
                     $DB20G = $Bases20G[$20Gi].Name
                     $20Gicount = $Bases20G[$20Gi].Mailboxes
