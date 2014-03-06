@@ -27,4 +27,3 @@ $shortcut.IconLocation = $localpath + $ico
 $shortcut.TargetPath = "$env:PROGRAMFILES\Internet Explorer\iexplore.exe"
 $shortcut.WindowStyle = 3
 $shortcut.Save()
-new-object System.Net.WebClient

@@ -36,7 +36,7 @@ Function Move-MailboxesCustom {
         $Bases | Format-Table -AutoSize
         $Bases | Format-Table -AutoSize | Out-File -Encoding unicode -FilePath $LogPath -Append
         $CrowdedBases = $Bases | Where-Object { $_.Mailboxes -gt $Limit }
-        $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit -and $_.Mailboxes -gt 0}
+        $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit}
         If ($CrowdedBases) {
             ForEach ($Base in $CrowdedBases) {
                 $N = $Base.Mailboxes - $Limit
@@ -50,13 +50,14 @@ Function Move-MailboxesCustom {
                     write-host -ForegroundColor Green "Moving" $Mailbox.Alias "from crowded base" $Base.Name "to" $TargetDB.Name
                     New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name | Out-Null
                     $TargetDB.Mailboxes++
-                    $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit -and $_.Mailboxes -gt 0 } 
+                    $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit } 
                 }
             }
         }
         $line = "=========================================================="
         $line | Out-File -Encoding unicode -FilePath $LogPath -Append
         $line
+        $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit -and $_.Mailboxes -gt 0 }
         While ($Bases.Count -gt 1) {
             $MovingMailboxes = Get-Mailbox -Database $Bases[0].Name
             write-host -ForegroundColor Green "Next mailboxes will be moved:"
