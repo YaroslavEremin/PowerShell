@@ -1,6 +1,4 @@
-﻿
-
-Function Move-MailboxesCustom {
+﻿Function Move-MailboxesCustom {
 <#
   .SYNOPSIS
   This function move mailboxes

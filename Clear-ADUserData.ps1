@@ -13,6 +13,7 @@ function find-user {
     If ( $Users ) {
 
         Write-Log "User found"
+        Return $Users
 
     } else {
 
@@ -24,56 +25,41 @@ function find-user {
 
 function find-profiles {
 
-    Param ( 
-
-        [Parameter( Mandatory = $True, Position = 0, ValueFromPipeline = $True )]
-        [String]$SAM
-
-     )
-
-    $computers = Get-ChildItem \\msk-support\ActiveUsers -Filter ( $SAM + '@*' ) | %{[regex]::Replace( [regex]::replace( $_,'.*@','' ),'\.txt$','' )}
+    $computers = Get-ChildItem \\msk-support\ActiveUsers -Filter ( $ADUser.SamAccountName + '@wts*' ) | %{[regex]::Replace( [regex]::replace( $_,'.*@','' ),'\.txt$','' )}
     return $computers
 
 }
 
 function delete-profiles {
 
-    Param ( 
+    write-log  ("Начинаем удаление профилей пользователя: " + $ADUser.SamAccountName)
+    $computers = @()
+    $computers = find-profiles
+    write-log "Trying to search user profile on $computers"
+    $SAM = $ADUser.SamAccountName
 
-        [Parameter( Mandatory = $True, Position = 0, ValueFromPipeline = $False )]
-        [String]$SAM,
-        [Parameter( Mandatory = $True, Position = 1, ValueFromPipeline = $True )]
-        [String]$computer
+    ForEach ($computer in $computers) {
 
-     )
+        $Profile = $null
 
-    write-log  "Начинаем удаление профилей пользователя"
+        Try {
 
-    If ( Test-Connection $computer ) {
+        $Profile = Get-WmiObject Win32_UserProfile -computer $computer -filter "localpath='C:\\Users\\$SAM'"
 
-        $PathEN = "\\" + $computer + "\c`$\Users\" + $SAM
-        $PathRU = "\\" + $computer +  "\c`$\Пользователи\" + $SAM
+        } catch {
+        #to be continied
+        }
+        
+        If ($Profile) {
 
-        If ( Test-Path $PathEN ) {
+            write-log "Profile on $computer is found. Removing"
+            $Profile.delete()
 
-            Remove-Item $PathEN -Recurse -Force -Confirm:$False -ErrorAction SilentlyContinue -whatif:$debugMode
-            Write-Log "Delete profile: $PathEN"
+        } else {
 
-        } ElseIf ( Test-Path $PathRU ) {
-
-            Remove-Item $PathRU -Recurse -Force -Confirm:$False -ErrorAction SilentlyContinue -whatif:$debugMode
-            Write-Log "Delete profile: $PathRU"
-
-        } Else {
-
-            Write-Log "Profile not find"
+            write-log "Profile on $computer is not found"
 
         }
-
-    } Else {
-
-        Write-Log "Computer is offline"
-
     }
 }
 
@@ -105,7 +91,7 @@ function Export-MailboxToPST {
     Get-MailboxExportRequest -Status Completed | Remove-MailboxExportRequest -Confirm:$False | Out-Null
     Get-MailboxExportRequest -Status Failed | Remove-MailboxExportRequest -Confirm:$False | Out-Null
     write-log  "Начинаем экспорт почтового ящика $UserMailbox в файл $PSTFilePath"
-    $Request = New-MailboxExportRequest -Mailbox $UserMailbox.Alias -FilePath $PSTFilePath -whatif:$debugMode
+    $Request = New-MailboxExportRequest -Mailbox $UserMailbox.Alias -FilePath $PSTFilePath
     $Request
 
 }
@@ -137,22 +123,15 @@ Function Block-User {
         if ( !( $Group -match "DV-users|MS-dax|Domain Users" ) ) {
 
             write-log  "Пользователь удаляется из группы $Group"
-            get-adgroup $Group | Remove-AdGroupMember -member $ADUser.DistinguishedName -Confirm:$false -whatif:$debugMode
+            get-adgroup $Group | Remove-AdGroupMember -member $ADUser.DistinguishedName -Confirm:$false
     
         }
     }
   
     write-log  "Блокируем учетную запись пользователя"
-    Disable-ADAccount $ADUser -whatif:$debugMode
-  
-    $Phones = @{
-        "HomePhone"       = $Null
-        "mobile"          = $Null
-        "OfficePhone"     = $Null 
-    }
-  
+    Disable-ADAccount $ADUser
     write-log  "Удаляем информацию о телефонах"
-    $AdUser | Set-ADUser @Phones -whatif:$debugMode
+    $AdUser | Set-ADUser -MobilePhone $Null -OfficePhone $Null -HomePhone $Null
   
     If ( $AdUser.DistinguishedName -match "OU=Sochi" ) {
     
@@ -166,17 +145,17 @@ Function Block-User {
   
     $DestinationOU = "OU="+$MoveToOU+",OU=Disabled Users,DC=SOCHI-2014,DC=RU"
     write-log  "Переносим учетную запись в $DestinationOU"
-    Move-ADObject $ADUser -TargetPath $DestinationOU -whatif:$debugMode
+    Move-ADObject $ADUser -TargetPath $DestinationOU
   
 }
 
 $CurrentDirectory = Get-ScriptDirectory
 import-module activedirectory
-$PathToLogFile = $CurrentDirectory + "\" + (Get-Date -format yyyy-MM-dd_HH-mm-ss) + "_" + $User
+$PathToLogFile = $CurrentDirectory + "\" + (Get-Date -format yyyy-MM-dd_HH-mm-ss) + "_" + $User + ".txt"
 #Создаем удаленную сессию для импорта командлетов с сервера Exchange
 $Session = $null
 $ExchServer = 'exch-cas02-n1'
-#Проходим по списку и пытаемся создать удаленную PS-сессию до сервера
+#Пытаемся создать удаленную PS-сессию до сервера
 write-log "Попытка создать PSSession до сервера $ExchServer"
 $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri ( "http://" +$ExchServer+"/Powershell/" ) -authentication Kerberos -ErrorAction SilentlyContinue
 
@@ -208,52 +187,54 @@ if ( $ADUser ){
             $ExportRequest = Export-MailboxToPST
             $LastRequestStatus = $Null   
 
-                                                do {
+            do {
 
-            $ExportRequestStatus = ( Get-MailboxExportRequest $ExportRequest.RequestGuid ).Status
+                $ExportRequestStatus = ( Get-MailboxExportRequest $ExportRequest.RequestGuid ).Status
 
-            if ( $LastRequestStatus -ne $ExportRequestStatus ) {
+                if ( $LastRequestStatus -ne $ExportRequestStatus ) {
 
-                $LastRequestStatus = $ExportRequestStatus
-                $OutString = "Статус запроса на экспорт почтового ящика изменен на "+$LastRequestStatus
-                write-log $OutString
+                    $LastRequestStatus = $ExportRequestStatus
+                    $OutString = "Статус запроса на экспорт почтового ящика изменен на "+$LastRequestStatus
+                    write-log $OutString
+
+                }
+
+                Start-Sleep 15
+       
+            } until ( ( $ExportRequestStatus -eq "Completed" ) -or ( $ExportRequestStatus -eq "Failed" ) )
+    
+            if ( $ExportRequestStatus -eq "Failed" ) {
+
+                write-log "Экспорт почтового ящика в PST завершился ошибкой"
+
+            } elseif ( ( Get-Item $PSTFilePath ).Length -eq 271360 ) {
+
+                write-log "Экспорт почтового ящика в PST завершился ошибкой. Размер выходного файла равен 265Kb. Необходимо предоставить учетной записи, от имени которой запускается скрипт, доступ уровня Full Access к данному почтовому ящику и запустить скрипт повторно."
+    
+            } else {
+    
+                $NewPSTFilePath = "\\file-06\d$\PST_backup\Удаленные с сервера\" + $ADUser.sAMAccountName + ".pst"
+                write-log "Переносим выгруженный файл в $NewPSTFilePath"
+                move-item -LiteralPath $PSTFilePath -Destination $NewPSTFilePath -Force
+                write-log "Отключаем почтовый ящик"
+                Disable-Mailbox $UserMailbox.Alias -Confirm:$False
+                Block-User
 
             }
 
-            Start-Sleep 15
-       
-        } until ( ( $ExportRequestStatus -eq "Completed" ) -or ( $ExportRequestStatus -eq "Failed" ) )
-    
-                if ( $ExportRequestStatus -eq "Failed" ) {
-
-        write-log "Экспорт почтового ящика в PST завершился ошибкой"
-
-    } elseif ( ( Get-Item $PSTFilePath ).Length -eq 271360 ) {
-
-            write-log "Экспорт почтового ящика в PST завершился ошибкой. Размер выходного файла равен 265Kb. Необходимо предоставить учетной записи, от имени которой запускается скрипт, доступ уровня Full Access к данному почтовому ящику и запустить скрипт повторно."
-    
         } else {
-    
-            $NewPSTFilePath = "\\file-06\d$\PST_backup\Удаленные с сервера\"+$ADUser.sAMAccountName+".pst"
-            write-log "Переносим выгруженный файл в $NewPSTFilePath"
-            move-item $PSTFilePath $NewPSTFilePath -whatif:$debugMode -Force
-            write-log "Отключаем почтовый ящик"
-            Disable-Mailbox $UserMailbox.Alias -Confirm:$False -whatif:$debugMode
+
+            write-log "У пользователя нет почтового ящика"
+            delete-profiles
             Block-User
-
-        }
-    
-        } else {
-
-        write-log "У пользователя нет почтового ящика"
-        Block-User
-
+        
         }
 
     } else {
 
-    write-log "У пользователя нет почтового ящика"
-    Block-User
+        write-log "У пользователя нет почтового ящика"
+        delete-profiles
+        Block-User
 
     }    
 }

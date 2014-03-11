@@ -1,6 +1,4 @@
-﻿
-
-Function Move-Mailboxes {
+﻿Function Move-Mailboxes {
 <#
   .SYNOPSIS
   This function move mailboxes 
@@ -115,11 +113,3 @@ END {
 
 }
 }
-
-
-"MMarkin","DSekachev","pbulavin" | Move-Mailboxes -ServerMask ECXH-MB1 -NoAction
-
-$ServerMask = "EXCH-MB2"
-$a = "MMarkin"
-get-type -Type $a
-$a | get-member
