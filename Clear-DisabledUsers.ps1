@@ -1,13 +1,14 @@
 ﻿Param ( 
 
-    [switch]$debugMode = $true
+    [switch]$debugMode = $false
 
  )
 
+#Поиск пользователей в целевых OU, отключенных заданное количество дней назад
 function find-users {
 
     $Date = (Get-Date)
-    $Date = $Date.AddDays(-2)
+    $Date = $Date.AddDays(-4)
     $Users = $NULL
 
     Try {
@@ -46,6 +47,7 @@ function find-users {
 
 }
 
+#Поиск на какие компьютеры заходил пользователь
 function find-profiles {
 
     $computers = Get-ChildItem \\msk-support\ActiveUsers -Filter ( $ADUser.SamAccountName + '@wts*' ) | %{[regex]::Replace( [regex]::replace( $_,'.*@','' ),'\.txt$','' )}
@@ -53,6 +55,7 @@ function find-profiles {
 
 }
 
+#Удаление профилей пользователя на найденных компьютерах
 function delete-profiles {
 
     write-log  ("Начинаем удаление профилей пользователя: " + $ADUser.SamAccountName)
@@ -96,6 +99,7 @@ function delete-profiles {
 
 }
 
+#Логирование действий
 function Write-Log {
 
     Param ( 
@@ -111,14 +115,15 @@ function Write-Log {
 
 }
 
+#Данная функция возвращает каталог, в котором хранится наш скрипт
 function Get-ScriptDirectory {
 
-    #Данная функция возвращает каталог, в котором хранится наш скрипт
     $Invocation = ( Get-Variable MyInvocation -Scope 1 ).Value
     Split-Path $Invocation.MyCommand.Path
     
 }
 
+#Запуск экспорта почтовых ящиков отключенных пользователей
 function Export-MailboxesToPST {
 
     Get-MailboxExportRequest -Status Completed | Remove-MailboxExportRequest -Confirm:$False | Out-Null
@@ -160,6 +165,7 @@ function Export-MailboxesToPST {
 
 }
 
+#Перемещение выгруженных в PST файлы почтовых ящиков на файловый ресурс архива.
 function Move-ArchivePSTFiles {
 
     $Flag = $True
@@ -241,6 +247,7 @@ function Move-ArchivePSTFiles {
 
 }
 
+#Закрытие удаленной сессии PS и завершение работы скрипта.
 function Finalize-Script {
 
     if ( $Session )   {
@@ -322,6 +329,7 @@ Import-PSSession $Session -AllowClobber | Out-Null
 $ADUsers = $NULL
 $ADUsers = Find-Users
 $ADUsers | ft -AutoSize SamAccountName,Description,Title
+Start-Sleep 10
 Export-MailboxesToPST
 Move-ArchivePSTFiles
 
