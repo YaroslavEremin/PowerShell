@@ -46,7 +46,7 @@
                 ForEach ($Mailbox in $MovingMailboxes) {
                     $TargetDB = $Bases[$Bases.Count - 1]
                     write-host -ForegroundColor Green "Moving" $Mailbox.Alias "from crowded base" $Base.Name "to" $TargetDB.Name
-                    New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name | Out-Null
+                    New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name -ErrorAction SilentlyContinue | Out-Null
                     $TargetDB.Mailboxes++
                     $Bases = $Bases | Where-Object { $_.Mailboxes -lt $Limit } 
                 }
@@ -70,7 +70,7 @@
                 return
                 }
                 write-host -ForegroundColor DarkGreen "Moving" $Mailbox.Alias "to" $TargetDB.Name
-                New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name | Out-Null
+                New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name -ErrorAction SilentlyContinue | Out-Null
                 #New-MoveRequest -Identity $Mailbox.Alias -TargetDatabase $TargetDB.Name  -BadItemLimit 100 -AcceptLargeDataLoss | Out-Null
                 $TargetDB.Mailboxes++
                 $Bases[0].Mailboxes--
