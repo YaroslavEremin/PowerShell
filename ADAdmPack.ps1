@@ -117,3 +117,17 @@ Foreach ($Computer in $Computers){
 }
 Get-Admins | Export-Csv -Delimiter ";" -Path C:\AdminList.csv -Encoding unicode 
 
+#Приведение телефонов пользователей к единому виду. Внимание! Если есть телефоны с добавочным номером будет некрасиво.
+$Users = Get-ADUser -Filter * -Properties telephonenumber | Select SamAccountName,telephonenumber
+foreach ($User in $Users) {
+    If ($User.telephonenumber) {
+        $newtelephonenumber = [regex]::Replace($User.telephonenumber,"\D","")
+        $newtelephonenumber = [regex]::Replace($newtelephonenumber,"^7","8")
+        Set-ADUser -Identity $User.SamAccountName -OfficePhone $User.telephonenumber
+        Write-Host ($User.telephonenumber + "изменен на" + $newtelephonenumber) -ForegroundColor Green
+    } Else {
+        Write-Host "Телефонный номер отсутствует" -ForegroundColor Red
+    }
+}
+
+
